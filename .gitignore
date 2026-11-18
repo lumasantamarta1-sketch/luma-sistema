@@ -42,3 +42,6 @@ next-env.d.ts
 
 # plantilla de variables (sin valores secretos)
 !.env.example
+
+# netlify (estado local del enlace con el sitio)
+.netlify
