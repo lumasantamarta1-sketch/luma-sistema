@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/* Marca LUMA: colores medidos sobre el logo (sección 1 de la propuesta) */
+@theme {
+  --color-morado: #2d0a72;
+  --color-morado-700: #3d1590;
+  --color-morado-100: #ece6f8;
+  --color-morado-50: #f5f1fc;
+  --color-amarillo: #febd5b;
+  --color-turquesa: #11cfdb;
+  --color-rosa: #ff4d81;
+  --color-naranja: #fe701e;
+  --color-fondo: #fbf8ff;
+  --color-error: #d92d20;
+  --color-tinta: #1f1534;
+  --color-suave: #6b6380;
+  --color-borde: #e4def0;
+
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-titulo: "Fredoka", "Nunito", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-fondo);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, .font-titulo {
+  font-family: var(--font-titulo);
+}
+
+/* Cifras alineadas en tablas y tarjetas */
+.cifra {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-turquesa);
+  outline-offset: 2px;
+}
