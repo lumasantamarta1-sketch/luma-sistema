@@ -1,5 +1,6 @@
 "use server";
 
+import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -20,7 +21,10 @@ export async function ingresar(_: EstadoFormulario, datos: FormData): Promise<Es
   }
   const supabase = await crearClienteServidor();
   const { error } = await supabase.auth.signInWithPassword({ email: r.data.correo, password: r.data.clave });
-  if (error) return { error: mensajeError(error), campos: { correo: r.data.correo } };
+  if (error) {
+    console.error("[ingresar]", error.status, error.code ?? error.message);
+    return { error: mensajeError(error), campos: { correo: r.data.correo } };
+  }
   redirect("/");
 }
 
@@ -45,12 +49,20 @@ async function direccionDelSitio() {
 export async function recuperar(_: EstadoFormulario, datos: FormData): Promise<EstadoFormulario> {
   const r = esquemaRecuperar.safeParse({ correo: datos.get("correo") });
   if (!r.success) return { error: r.error.issues[0]?.message };
-  const supabase = await crearClienteServidor();
   const sitio = await direccionDelSitio();
-  const { error } = await supabase.auth.resetPasswordForEmail(r.data.correo, {
-    redirectTo: `${sitio}/auth/confirmar?siguiente=/cambiar-clave`,
+  // Flujo "implicit": el enlace del correo funciona aunque se abra en otro navegador o en el celular.
+  // Con PKCE el enlace solo sirve en el mismo navegador donde se pidió (necesita una cookie de ese navegador).
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
+  const { error } = await supabase.auth.resetPasswordForEmail(r.data.correo, { redirectTo: `${sitio}/auth/sesion` });
+  if (error) {
+    console.error("[recuperar]", error.status, error.message);
+    if (error.message.includes("email rate limit")) {
+      return { error: "Ya se enviaron los correos permitidos en esta hora. Espera un rato e inténtalo de nuevo." };
+    }
+    if (error.message.includes("rate limit")) return { error: mensajeError(error) };
+  }
   // Por seguridad la respuesta es la misma exista o no el correo
-  if (error && error.message.includes("rate limit")) return { error: mensajeError(error) };
-  return { exito: "Si el correo está registrado, te llegará un enlace para crear una contraseña nueva." };
+  return { exito: "Si el correo está registrado, te llegará un enlace para crear una contraseña nueva. Puedes abrirlo desde el celular o el computador." };
 }

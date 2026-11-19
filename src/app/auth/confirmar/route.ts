@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const token = url.searchParams.get("token_hash");
   const tipo = url.searchParams.get("type") as EmailOtpType | null;
 
-  let error: unknown = null;
+  let error: { message?: string } | true | null = null;
   if (codigo) {
     ({ error } = await supabase.auth.exchangeCodeForSession(codigo));
   } else if (token && tipo) {
@@ -21,5 +21,6 @@ export async function GET(request: NextRequest) {
   } else {
     error = true;
   }
+  if (error) console.error("[auth/confirmar]", error === true ? "faltan parámetros" : error.message);
   return NextResponse.redirect(new URL(error ? "/ingresar?motivo=enlace" : destino, request.url));
 }

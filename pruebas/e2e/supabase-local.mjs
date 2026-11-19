@@ -46,6 +46,12 @@ const error = (res, codigo, msg) => json(res, codigo, { code: codigo, error_code
 
 http.createServer(async (req, res) => {
   try {
+    // CORS como el Supabase real: el navegador llama a /auth/v1 desde otra dirección (p. ej. /auth/sesion)
+    res.setHeader("access-control-allow-origin", req.headers.origin ?? "*");
+    res.setHeader("access-control-allow-headers", "authorization, apikey, content-type, x-client-info, x-supabase-api-version, prefer, accept-profile, content-profile, range");
+    res.setHeader("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("access-control-expose-headers", "content-range");
+    if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
     const url = new URL(req.url, "http://localhost");
     if (url.pathname.startsWith("/rest/v1/")) {
       // El portero real de Supabase traduce la llave publicable; aquí: sin JWT válido → anónimo
