@@ -20,7 +20,7 @@ export default async function PaginaConfiguracion() {
 
   return (
     <>
-      <Encabezado titulo="Configuración" descripcion="Negocio y puntos de venta. Impuestos, métodos de pago y descuentos llegan con sus módulos." />
+      <Encabezado titulo="Configuración" descripcion="Negocio y puntos de venta. Las cuentas y los métodos de pago están en Caja; los descuentos, en Ventas." />
       <div className="grid gap-4 lg:grid-cols-2">
         <Tarjeta>{negocio && <FormularioNegocio negocio={negocio} />}</Tarjeta>
         <div className="flex flex-col gap-4">

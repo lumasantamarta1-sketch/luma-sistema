@@ -14,7 +14,13 @@ Piezas:
   inmediata, bloqueo por falta de existencias, cotización con cliente nuevo editada y confirmada con abono,
   entrega a crédito solo con permiso, promoción autorizada, pedido personalizado por estampar, devolución con
   reembolso, comprobante interno y lo que la vendedora no puede ver.
-- `correr-todo.sh`: levanta la base, el simulador y la app (si no están) y corre los dos recorridos.
+- `ayudas.mjs`: funciones compartidas por los recorridos (ingresar, llenar, elegir, esperar texto…).
+- `e2e-dinero.mjs`: gastos (pagado, por pagar, anulado, fijos y categorías) y caja (traslado, retiro sin fondos,
+  cierre con diferencia justificada, cuentas y métodos de pago).
+- `e2e-compras.mjs`: proveedores y compras (confirmar, recepción parcial con flete repartido en el costo, pago,
+  devolución al proveedor, anulación) y la recepción sin costos del encargado de inventario.
+- `e2e-informes.mjs`: panel de inicio, informes de ventas, resultado e inventario, exportaciones CSV y permisos.
+- `correr-todo.sh`: levanta la base, el simulador y la app (si no están) y corre todos los recorridos en orden.
 
 Requisitos: PostgreSQL 16+, PostgREST 12, Node 22, Chrome, y `npm i pg puppeteer-core` en esta carpeta.
 La aplicación se compila con `NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321` y se sirve en el puerto 3100.

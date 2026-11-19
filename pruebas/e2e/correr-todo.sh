@@ -13,4 +13,10 @@ fi
 for i in $(seq 1 60); do curl -s -o /dev/null http://localhost:3100/ingresar && curl -s -o /dev/null http://localhost:54321/ && break; sleep 1; done
 timeout 400 node e2e.mjs > /tmp/e2e-base.log 2>&1 || { tail -30 /tmp/e2e-base.log; exit 1; }
 tail -2 /tmp/e2e-base.log
-timeout 500 node e2e-ventas.mjs 2>&1 | tail -${1:-40}
+timeout 500 node e2e-ventas.mjs > /tmp/e2e-ventas.log 2>&1 || { tail -30 /tmp/e2e-ventas.log; exit 1; }
+grep -E "^ok|FALLÓ|Errores|Sin errores" /tmp/e2e-ventas.log
+for extra in e2e-dinero.mjs e2e-compras.mjs e2e-informes.mjs; do
+  [[ -e "$extra" ]] || continue
+  timeout 500 node "$extra" > "/tmp/${extra%.mjs}.log" 2>&1 || { tail -40 "/tmp/${extra%.mjs}.log"; exit 1; }
+  grep -E "^ok|FALLÓ|Errores|Sin errores|consola|pageerror" "/tmp/${extra%.mjs}.log"
+done
