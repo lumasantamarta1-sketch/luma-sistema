@@ -19,6 +19,14 @@ export function fecha(valor: string | Date | null | undefined) {
   }).format(new Date(valor));
 }
 
+// Postgres escribe los numeric con punto decimal: 7.000 (cantidades, 3 decimales) y 35000.00 (dinero, 2).
+// En Colombia "7.000" se lee siete mil, así que se reescriben como 7 y $ 35.000.
+function cifrasLegibles(m: string) {
+  return m
+    .replace(/(?<![\d.])(-?\d+)\.(\d{3})(?!\d)/g, (_, e: string, d: string) => String(Number(`${e}.${d}`)).replace(".", ","))
+    .replace(/(?<![\d.])(-?\d+)\.(\d{2})(?!\d)/g, (_, e: string, d: string) => pesos(`${e}.${d}`));
+}
+
 // Traduce los errores de Postgres y de Auth a mensajes claros
 export function mensajeError(error: { message?: string; code?: string } | null | undefined): string {
   if (!error) return "Ocurrió un error inesperado.";
@@ -28,8 +36,9 @@ export function mensajeError(error: { message?: string; code?: string } | null |
   if (m.includes("User already registered") || m.includes("already been registered")) return "Ya existe un usuario con ese correo.";
   if (m.includes("Password should be") || m.includes("weak")) return "La contraseña es muy débil: usa al menos 8 caracteres.";
   if (m.includes("rate limit")) return "Demasiados intentos. Espera unos minutos.";
-  if (error.code === "42501" || m.includes("permission denied") || m.includes("row-level security"))
-    return m.startsWith("No tienes") || m.startsWith("Solo") || m.startsWith("Nadie") || m.startsWith("Debe") ? m : "No tienes permiso para esta acción.";
+  // Los mensajes de Postgres y de RLS son técnicos; los de nuestras funciones ya vienen en español
+  if (m.includes("permission denied") || m.includes("row-level security")) return "No tienes permiso para esta acción.";
   if (error.code === "23505") return "Ya existe un registro con ese dato.";
-  return m || "Ocurrió un error inesperado.";
+  if (error.code === "42501") return m ? cifrasLegibles(m) : "No tienes permiso para esta acción.";
+  return m ? cifrasLegibles(m) : "Ocurrió un error inesperado.";
 }

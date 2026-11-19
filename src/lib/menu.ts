@@ -14,8 +14,8 @@ export const MENU: GrupoMenu[] = [
   {
     titulo: "Operación",
     items: [
-      { ruta: "/ventas", titulo: "Ventas", icono: "ShoppingBag", permisos: ["ventas.ver", "ventas.ver_propias", "ventas.crear", "ventas.entregar"], fase: 6 },
-      { ruta: "/estampado", titulo: "Estampado", icono: "Paintbrush", permisos: ["estampado.ver", "estampado.gestionar"], fase: 4 },
+      { ruta: "/ventas", titulo: "Ventas", icono: "ShoppingBag", permisos: ["ventas.ver", "ventas.ver_propias", "ventas.crear", "ventas.entregar"] },
+      { ruta: "/estampado", titulo: "Estampado", icono: "Paintbrush", permisos: ["estampado.ver", "estampado.gestionar"] },
       { ruta: "/compras", titulo: "Compras", icono: "Truck", permisos: ["compras.ver", "compras.gestionar", "compras.recibir"], fase: 5 },
       { ruta: "/gastos", titulo: "Gastos", icono: "Receipt", permisos: ["gastos.ver", "gastos.registrar"], fase: 7 },
       { ruta: "/caja", titulo: "Caja", icono: "Wallet", permisos: ["caja.ver", "caja.gestionar", "caja.cerrar"], fase: 7 },
@@ -24,14 +24,14 @@ export const MENU: GrupoMenu[] = [
   {
     titulo: "Catálogo",
     items: [
-      { ruta: "/productos", titulo: "Productos", icono: "Shirt", permisos: ["catalogo.ver"], fase: 4 },
-      { ruta: "/inventario", titulo: "Inventario", icono: "Boxes", permisos: ["inventario.ver"], fase: 4 },
+      { ruta: "/productos", titulo: "Productos", icono: "Shirt", permisos: ["catalogo.ver"] },
+      { ruta: "/inventario", titulo: "Inventario", icono: "Boxes", permisos: ["inventario.ver"] },
     ],
   },
   {
     titulo: "Terceros",
     items: [
-      { ruta: "/clientes", titulo: "Clientes", icono: "Users", permisos: ["clientes.ver", "clientes.crear", "clientes.gestionar"], fase: 6 },
+      { ruta: "/clientes", titulo: "Clientes", icono: "Users", permisos: ["clientes.ver", "clientes.crear", "clientes.gestionar"] },
       { ruta: "/proveedores", titulo: "Proveedores", icono: "Factory", permisos: ["proveedores.ver", "proveedores.gestionar"], fase: 5 },
     ],
   },

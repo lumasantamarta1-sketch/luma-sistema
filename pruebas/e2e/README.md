@@ -10,6 +10,11 @@ Piezas:
 - `postgrest.conf`: PostgREST 12 apuntando a la base `luma` local.
 - `reiniciar.sh`: recrea la base con las migraciones y crea el administrador de prueba.
 - `e2e.mjs`: el recorrido con puppeteer-core y el Chrome del equipo.
+- `e2e-ventas.mjs`: el módulo de ventas, sobre lo que deja `e2e.mjs`: venta de mostrador con cambio y entrega
+  inmediata, bloqueo por falta de existencias, cotización con cliente nuevo editada y confirmada con abono,
+  entrega a crédito solo con permiso, promoción autorizada, pedido personalizado por estampar, devolución con
+  reembolso, comprobante interno y lo que la vendedora no puede ver.
+- `correr-todo.sh`: levanta la base, el simulador y la app (si no están) y corre los dos recorridos.
 
 Requisitos: PostgreSQL 16+, PostgREST 12, Node 22, Chrome, y `npm i pg puppeteer-core` en esta carpeta.
 La aplicación se compila con `NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321` y se sirve en el puerto 3100.

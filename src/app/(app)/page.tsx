@@ -2,14 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { exigirSesion, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
+import { Plus } from "lucide-react";
 import { Encabezado, Tarjeta } from "@/components/ui/tarjeta";
 import { pesos } from "@/lib/utilidades";
+import { hoyBogota } from "@/lib/ventas";
 
 export const metadata: Metadata = { title: "Inicio" };
-
-function hoyBogota() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
-}
 
 export default async function Inicio() {
   const sesion = await exigirSesion();
@@ -23,7 +21,12 @@ export default async function Inicio() {
   return (
     <>
       <Encabezado titulo={`Hola, ${sesion.nombre.split(" ")[0] || "bienvenido"}`}
-                  descripcion={`${sesion.rolNombre ?? ""}${sesion.bodegas.length ? " · " + sesion.bodegas.map((b) => b.nombre).join(", ") : ""}`} />
+                  descripcion={`${sesion.rolNombre ?? ""}${sesion.bodegas.length ? " · " + sesion.bodegas.map((b) => b.nombre).join(", ") : ""}`}
+                  acciones={tiene(sesion, "ventas.crear") && sesion.bodegas.some((b) => b.tipo === "punto_venta") ? (
+                    <Link href="/ventas/nueva" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-morado px-4 font-semibold text-white hover:bg-morado-700">
+                      <Plus className="size-5" aria-hidden /> Nueva venta
+                    </Link>
+                  ) : undefined} />
 
       {sinPuntos && (
         <Tarjeta className="mb-5 border-amarillo bg-amarillo/10">

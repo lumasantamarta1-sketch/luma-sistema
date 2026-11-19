@@ -31,7 +31,9 @@ type Fila = {
   disenos: { nombre: string } | null;
 };
 
-export function detalleVariante(f: Pick<Fila, "tallas" | "colores" | "tipos_camiseta" | "disenos">) {
+type ConNombre = { nombre: string } | null | undefined;
+
+export function detalleVariante(f: { tallas?: ConNombre; colores?: ConNombre; tipos_camiseta?: ConNombre; disenos?: ConNombre }) {
   return [f.disenos?.nombre, f.tipos_camiseta?.nombre, f.tallas?.nombre, f.colores?.nombre].filter(Boolean).join(" · ");
 }
 
