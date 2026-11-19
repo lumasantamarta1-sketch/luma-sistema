@@ -19,7 +19,12 @@ Piezas:
   cierre con diferencia justificada, cuentas y métodos de pago).
 - `e2e-compras.mjs`: proveedores y compras (confirmar, recepción parcial con flete repartido en el costo, pago,
   devolución al proveedor, anulación) y la recepción sin costos del encargado de inventario.
-- `e2e-informes.mjs`: panel de inicio, informes de ventas, resultado e inventario, exportaciones CSV y permisos.
+- `e2e-informes.mjs`: panel de inicio con filtro de fechas, informes de ventas, clientes y cuentas, resultado mes a
+  mes, compras y gastos, inventario con su evolución, exportaciones en CSV y Excel, copia de seguridad, auditoría,
+  ficha del cliente y permisos.
+- `e2e-venta-rapida.mjs`: la venta rápida de mostrador como la haría alguien sin capacitación: un toque por camiseta,
+  promoción aplicada sola, efectivo con cambio, pedido por estampar con abono por Nequi y cliente elegido de la lista,
+  separado sin pago con cliente nuevo, y la pantalla en celular.
 - `correr-todo.sh`: levanta la base, el simulador y la app (si no están) y corre todos los recorridos en orden.
 
 Requisitos: PostgreSQL 16+, PostgREST 12, Node 22, Chrome, y `npm i pg puppeteer-core` en esta carpeta.

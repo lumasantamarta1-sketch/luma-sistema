@@ -17,11 +17,26 @@ Next.js (App Router) + TypeScript + Tailwind CSS, sobre Supabase (Postgres, Auth
 - **Llave secreta solo en el servidor.** Se usa únicamente para crear usuarios y restablecer contraseñas, después de
   verificar el permiso `usuarios.gestionar`.
 
+## Módulos
+
+| Sección | Qué hace |
+| --- | --- |
+| **Vender** (`/ventas/nueva`) | Venta de mostrador en tres pasos para quien no ha recibido capacitación: tocar las camisetas, cobrar (efectivo con cálculo del cambio, Nequi o transferencia, todo o un abono) y listo, con comprobante y mensaje de WhatsApp. Las promociones vigentes se aplican solas. No se registra dos veces aunque se toque el botón de nuevo. |
+| Ventas (`/ventas/nueva/completa`) | Formulario completo: cotizaciones, varios pagos, descuentos autorizados, cambio de precio y notas. Lista con estado de entrega y de pago (pagada, abonada, sin pagar, devuelta), pedidos, devoluciones y anulaciones. |
+| Clientes | Ficha con datos de contacto, fecha de registro, historial de compras y pedidos, total comprado y saldo pendiente. |
+| Inventario, Productos, Estampado, Compras, Proveedores | Catálogo con tallas y colores, existencias por punto, kardex, ajustes con aprobación, traslados, órdenes de estampado y compras con recepción parcial. |
+| Gastos y Caja | Gastos con soportes, gastos fijos, filtros por categoría, proveedor y usuario con comparación contra el periodo anterior; libro de caja, cuentas y cierres. |
+| Inicio | Indicadores de hoy y del periodo elegido (ventas, gastos, utilidad bruta, resultado, pedidos, agotados y stock bajo), ventas por día y por mes, utilidad por mes, gastos por categoría, evolución del inventario y alertas. |
+| Informes | Ventas (por producto, día, vendedor, punto, cliente y medio de pago), clientes y cuentas por cobrar y pagar, resultado y flujo de caja mes a mes, compras y gastos por proveedor, categoría y usuario, e inventario. Cada informe se descarga en Excel (.xlsx) o CSV y se imprime o guarda en PDF. |
+| Auditoría | Quién hizo qué, cuándo, en qué registro, con el valor anterior y el nuevo; también los ingresos y salidas de los usuarios. Se filtra y se descarga. |
+| Configuración | Datos del negocio, puntos de venta y **copia de seguridad** en Excel (una hoja por tabla). |
+
 ```
 src/app/(auth)/        ingreso y recuperación de contraseña
 src/app/(app)/         secciones del menú (una carpeta por sección)
 src/lib/supabase/      clientes de navegador, servidor, proxy y administración
 src/lib/sesion.ts      sesión y permisos del usuario (capa de acceso a datos)
+src/lib/exportar.ts    descargas en CSV y Excel (.xlsx), por páginas de 1.000 filas
 supabase/migrations/   tablas, funciones, RLS, auditoría y datos iniciales, en orden
 supabase/tests/        pruebas de la base de datos (flujo completo, permisos, concurrencia)
 ```
@@ -64,7 +79,13 @@ npm run db:probar
 
 Incluyen el ejemplo de la sección 9 de la propuesta (ventas netas $ 260.000, utilidad bruta $ 167.000, resultado
 $ 101.500, flujo −$ 260.000, inventario $ 356.500), permisos por rol, devoluciones, anulaciones, venta bajo pedido,
-pedidos personalizados, traslados, cierres de caja y dos vendedores confirmando a la vez la última unidad.
+pedidos personalizados, traslados, cierres de caja, dos vendedores confirmando a la vez la última unidad, y que los
+informes (mes a mes, cuentas por cobrar y pagar, gastos por categoría) cuadren con el resumen financiero.
+
+### Pruebas de punta a punta
+
+`pruebas/e2e/` recorre la aplicación en un navegador como cada rol: ingreso, productos, ventas (formulario completo y
+venta rápida), gastos, caja, compras, informes, exportaciones, auditoría y permisos. Ver `pruebas/e2e/README.md`.
 
 ### Primer administrador
 
@@ -100,4 +121,5 @@ Viven en un proyecto de Supabase aparte (`luma-demo`) y nunca se cargan en produ
 ## Costos
 
 Supabase Free, Netlify Free y GitHub Free: USD 0 al mes. Supabase gratuito no hace copias de seguridad y pausa el
-proyecto tras una semana sin uso; se exporta la base cada semana.
+proyecto tras una semana sin uso: descarga la copia desde **Configuración › Copia de seguridad** cada semana y guárdala
+fuera del sistema.

@@ -55,7 +55,7 @@ export async function editarCliente(_: Estado, datos: FormData): Promise<Estado>
   const { error } = await supabase.from("clientes")
     .update({ ...r.data, activo: datos.get("activo") === "on" }).eq("id", id.data);
   if (error) return { error: errorCliente(error) };
-  revalidatePath("/clientes");
+  revalidatePath("/clientes", "layout");
   return { exito: "Cambios guardados." };
 }
 

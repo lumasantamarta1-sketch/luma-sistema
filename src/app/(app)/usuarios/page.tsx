@@ -27,9 +27,16 @@ export default async function PaginaUsuarios() {
         titulo="Usuarios"
         descripcion="Cada usuario entra con su correo, tiene un rol y trabaja en los puntos que le asignes."
         acciones={
-          <Link href="/usuarios/roles" className="inline-flex min-h-11 items-center rounded-xl border border-borde bg-white px-4 font-semibold text-morado hover:bg-morado-50">
-            Roles y permisos
-          </Link>
+          <>
+            <Link href="/usuarios/roles" className="inline-flex min-h-11 items-center rounded-xl border border-borde bg-white px-4 font-semibold text-morado hover:bg-morado-50">
+              Roles y permisos
+            </Link>
+            {sesion.permisos.includes("auditoria.ver") && (
+              <Link href="/auditoria?tabla=sesiones" className="inline-flex min-h-11 items-center rounded-xl border border-borde bg-white px-4 font-semibold text-morado hover:bg-morado-50">
+                Historial de ingresos
+              </Link>
+            )}
+          </>
         }
       />
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">

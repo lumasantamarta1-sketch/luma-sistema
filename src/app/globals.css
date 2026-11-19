@@ -43,3 +43,13 @@ h1, h2, h3, .font-titulo {
   outline: 3px solid var(--color-turquesa);
   outline-offset: 2px;
 }
+
+/* Impresión y PDF de informes: fondo blanco, sin menús ni botones, márgenes de hoja */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body {
+    background: #fff;
+  }
+}

@@ -9,6 +9,8 @@ export type ProductoVenta = {
   id: string; sku: string; productoId: string; producto: string; detalle: string; unidad: string;
   precio: number | null; porPedido: boolean;
   disponible: Record<string, number>; // por punto de venta
+  // Para mostrar la camiseta en la venta rápida
+  talla: string | null; tallaOrden: number; color: string | null; colorHex: string | null; tipo: string | null; diseno: string | null;
 };
 
 export type ClienteOpcion = { id: string; nombre: string; documento: string | null; telefono: string | null };
@@ -35,7 +37,7 @@ export type DatosFormularioVenta = {
 type FilaVariante = {
   id: string; sku: string; precio_venta: number | null; producto_id: string;
   productos: { nombre: string; unidad_medida: string; por_pedido: boolean } | null;
-  tallas: { nombre: string; orden: number } | null; colores: { nombre: string } | null;
+  tallas: { nombre: string; orden: number } | null; colores: { nombre: string; hex: string | null } | null;
   tipos_camiseta: { nombre: string } | null; disenos: { nombre: string } | null;
 };
 
@@ -45,7 +47,7 @@ export async function datosFormularioVenta(supabase: SupabaseClient, sesion: Ses
   const hoy = hoyBogota();
   const [variantes, existencias, clientes, descuentos, metodos, config, venta] = await Promise.all([
     supabase.from("variantes")
-      .select("id, sku, precio_venta, producto_id, productos!inner(nombre, unidad_medida, por_pedido, se_vende, activo), tallas(nombre, orden), colores(nombre), tipos_camiseta(nombre), disenos(nombre)")
+      .select("id, sku, precio_venta, producto_id, productos!inner(nombre, unidad_medida, por_pedido, se_vende, activo), tallas(nombre, orden), colores(nombre, hex), tipos_camiseta(nombre), disenos(nombre)")
       .eq("activo", true).eq("productos.se_vende", true).eq("productos.activo", true).order("sku"),
     puntos.length
       ? supabase.from("existencias").select("variante_id, bodega_id, cantidad, apartada").in("bodega_id", puntos.map((p) => p.id))
@@ -73,7 +75,10 @@ export async function datosFormularioVenta(supabase: SupabaseClient, sesion: Ses
     id: v.id, sku: v.sku, productoId: v.producto_id, producto: v.productos?.nombre ?? "", detalle: detalleVariante(v),
     unidad: v.productos?.unidad_medida ?? "unidad", precio: v.precio_venta === null ? null : Number(v.precio_venta),
     porPedido: Boolean(v.productos?.por_pedido), disponible: disponible.get(v.id) ?? {},
-  })).sort((a, b) => a.producto.localeCompare(b.producto, "es") || a.sku.localeCompare(b.sku));
+    talla: v.tallas?.nombre ?? null, tallaOrden: v.tallas?.orden ?? 0, color: v.colores?.nombre ?? null, colorHex: v.colores?.hex ?? null,
+    tipo: v.tipos_camiseta?.nombre ?? null, diseno: v.disenos?.nombre ?? null,
+  })).sort((a, b) => a.producto.localeCompare(b.producto, "es") || (a.diseno ?? "").localeCompare(b.diseno ?? "", "es")
+    || (a.tipo ?? "").localeCompare(b.tipo ?? "", "es") || a.tallaOrden - b.tallaOrden || (a.color ?? "").localeCompare(b.color ?? "", "es"));
 
   type FilaDescuento = DescuentoOpcion & { vigente_desde: string | null; vigente_hasta: string | null };
   const vigentes = ((descuentos.data ?? []) as FilaDescuento[])

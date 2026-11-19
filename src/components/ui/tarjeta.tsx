@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utilidades";
 
 export function Tarjeta({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <section className={cn("rounded-2xl border border-borde bg-white p-4 sm:p-5", className)}>{children}</section>;
+  return <section className={cn("rounded-2xl border border-borde bg-white p-4 sm:p-5 print:break-inside-avoid", className)}>{children}</section>;
 }
 
 export function Encabezado({ titulo, descripcion, acciones }: { titulo: string; descripcion?: string; acciones?: React.ReactNode }) {
@@ -11,7 +11,7 @@ export function Encabezado({ titulo, descripcion, acciones }: { titulo: string; 
         <h1 className="text-2xl font-semibold text-morado">{titulo}</h1>
         {descripcion && <p className="mt-1 text-suave">{descripcion}</p>}
       </div>
-      {acciones && <div className="flex flex-wrap gap-2">{acciones}</div>}
+      {acciones && <div className="flex flex-wrap gap-2 print:hidden">{acciones}</div>}
     </header>
   );
 }

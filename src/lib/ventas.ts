@@ -1,4 +1,5 @@
 // Estados, saldos y textos de ventas, compartidos por el servidor y el navegador
+import { pesos } from "@/lib/utilidades";
 
 export type Tono = "neutro" | "exito" | "alerta" | "error" | "marca";
 
@@ -45,6 +46,20 @@ export function saldoVenta(v: {
   const total = v.estado === "cancelada" ? 0 : Number(v.total);
   const devuelto = (v.devoluciones_venta ?? []).reduce((s, d) => s + Number(d.valor_total), 0);
   return Math.round((total - devuelto - pagadoNeto(v.pagos_venta)) * 100) / 100;
+}
+
+// Cómo va el cobro de una venta confirmada: pagada, abonada, sin pagar, con saldo a favor o devuelta
+export function estadoPago(v: Parameters<typeof saldoVenta>[0]): { texto: string; tono: Tono } | null {
+  if (v.estado !== "confirmada") return null;
+  const total = Number(v.total);
+  const devuelto = (v.devoluciones_venta ?? []).reduce((s, d) => s + Number(d.valor_total), 0);
+  const saldo = saldoVenta(v);
+  if (devuelto > 0 && devuelto >= total - 0.005 && saldo >= 0) return { texto: "Devuelta", tono: "neutro" };
+  if (saldo > 0) return pagadoNeto(v.pagos_venta) > 0
+    ? { texto: `Abonada · debe ${pesos(saldo)}`, tono: "alerta" }
+    : { texto: `Sin pagar · debe ${pesos(saldo)}`, tono: "alerta" };
+  if (saldo < 0) return { texto: `A favor del cliente ${pesos(-saldo)}`, tono: "marca" };
+  return { texto: devuelto > 0 ? "Pagada · devolución parcial" : "Pagada", tono: "exito" };
 }
 
 export function numeroVenta(v: { numero: string | null; numero_cotizacion: string | null }) {

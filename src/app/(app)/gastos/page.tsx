@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { exigirPermiso, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { ESTADO_GASTO, inicioMesBogota } from "@/lib/gastos";
@@ -9,6 +9,10 @@ import { cn, fecha, pesos } from "@/lib/utilidades";
 import { PestanasGastos } from "@/components/app/pestanas";
 import { Encabezado, Insignia, Tarjeta } from "@/components/ui/tarjeta";
 import { GenerarRecurrentes } from "./formularios";
+import { Descargas } from "@/components/app/descargas";
+import { diasEntre, restarDias } from "@/lib/periodos";
+import { variacion } from "@/lib/informes";
+import { todasLasFilas } from "@/lib/exportar";
 
 export const metadata: Metadata = { title: "Gastos" };
 
@@ -27,7 +31,7 @@ type Fila = {
 const fechaValida = (t?: string) => (t && /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : "");
 
 export default async function PaginaGastos({ searchParams }: {
-  searchParams: Promise<{ estado?: string; categoria?: string; punto?: string; desde?: string; hasta?: string; q?: string }>;
+  searchParams: Promise<{ estado?: string; categoria?: string; punto?: string; desde?: string; hasta?: string; q?: string; proveedor?: string; usuario?: string }>;
 }) {
   const f = await searchParams;
   const sesion = await exigirPermiso("gastos.ver", "gastos.registrar", "gastos.configurar");
@@ -55,12 +59,16 @@ export default async function PaginaGastos({ searchParams }: {
   const q = (f.q ?? "").replace(/[^\p{L}\p{N}\s-]/gu, "").trim().slice(0, 60);
   const puntos = sesion.bodegas.filter((b) => b.tipo === "punto_venta");
 
-  const [{ data: categorias }, { data: fijos }] = await Promise.all([
+  const [{ data: categorias }, { data: fijos }, { data: proveedores }, { data: usuarios }] = await Promise.all([
     supabase.from("categorias_gasto").select("id, nombre").eq("tipo", "operativo").order("nombre"),
     registra ? supabase.from("gastos_recurrentes").select("id").eq("activo", true).limit(1) : Promise.resolve({ data: [] }),
+    supabase.from("proveedores").select("id, nombre").order("nombre").limit(1000),
+    supabase.rpc("usuarios_nombres"),
   ]);
   const categoria = (categorias ?? []).some((c) => c.id === f.categoria) ? f.categoria : undefined;
   const punto = f.punto === "general" || puntos.some((p) => p.id === f.punto) ? f.punto : undefined;
+  const proveedor = (proveedores ?? []).some((x) => x.id === f.proveedor) ? f.proveedor : undefined;
+  const usuario = ((usuarios ?? []) as { id: string }[]).some((x) => x.id === f.usuario) ? f.usuario : undefined;
 
   let consulta = supabase.from("gastos")
     .select("id, numero, fecha, descripcion, valor, estado, beneficiario, categorias_gasto(nombre), bodegas(nombre), proveedores(nombre)")
@@ -72,14 +80,36 @@ export default async function PaginaGastos({ searchParams }: {
   if (desde) consulta = consulta.gte("fecha", desde);
   if (hasta) consulta = consulta.lte("fecha", hasta);
   if (q) consulta = consulta.or(`descripcion.ilike.%${q}%,numero.ilike.%${q}%,beneficiario.ilike.%${q}%`);
-  const { data } = await consulta;
+  if (proveedor) consulta = consulta.eq("proveedor_id", proveedor);
+  if (usuario) consulta = consulta.eq("registrado_por", usuario);
+
+  // Comparación con el periodo anterior de la misma duración (mismos filtros, sin anulados)
+  const finPeriodo = hasta || hoyBogota();
+  const largo = desde && desde <= finPeriodo ? diasEntre(desde, finPeriodo).length : 0;
+  const anteriorDesde = largo ? restarDias(desde, largo) : "";
+  const anteriorHasta = largo ? restarDias(desde, 1) : "";
+  const [{ data }, anteriores] = await Promise.all([
+    consulta,
+    largo && estado !== "anulado" ? todasLasFilas<{ valor: number }>((a, b) => {
+      let x = supabase.from("gastos").select("valor").neq("estado", "anulado").gte("fecha", anteriorDesde).lte("fecha", anteriorHasta).order("id");
+      if (estado) x = x.eq("estado", estado);
+      if (categoria) x = x.eq("categoria_id", categoria);
+      if (punto === "general") x = x.is("bodega_id", null);
+      else if (punto) x = x.eq("bodega_id", punto);
+      if (q) x = x.or(`descripcion.ilike.%${q}%,numero.ilike.%${q}%,beneficiario.ilike.%${q}%`);
+      if (proveedor) x = x.eq("proveedor_id", proveedor);
+      if (usuario) x = x.eq("registrado_por", usuario);
+      return x.range(a, b) as unknown as PromiseLike<{ data: { valor: number }[] | null; error: { message: string } | null }>;
+    }, 20000).catch(() => null) : Promise.resolve(null),
+  ]);
+  const totalAnterior = anteriores ? anteriores.reduce((t, g) => t + Number(g.valor), 0) : null;
   const gastos = (data ?? []) as unknown as Fila[];
   const vigentes = gastos.filter((g) => g.estado !== "anulado");
   const total = vigentes.reduce((s, g) => s + Number(g.valor), 0);
   const porPagar = gastos.filter((g) => g.estado === "pendiente").reduce((s, g) => s + Number(g.valor), 0);
   const parametros = (cambio: Record<string, string>) => {
     const p = new URLSearchParams({ ...(estado ? { estado } : {}), ...(categoria ? { categoria } : {}), ...(punto ? { punto } : {}),
-      desde, ...(hasta ? { hasta } : {}), ...(q ? { q } : {}), ...cambio });
+      desde, ...(hasta ? { hasta } : {}), ...(q ? { q } : {}), ...(proveedor ? { proveedor } : {}), ...(usuario ? { usuario } : {}), ...cambio });
     for (const [k, v] of [...p.entries()]) if (v === "" && k !== "desde") p.delete(k);
     return `/gastos?${p}`;
   };
@@ -88,10 +118,11 @@ export default async function PaginaGastos({ searchParams }: {
     <>
       <Encabezado titulo="Gastos" descripcion="Lo que se paga para operar el negocio. La mercancía se registra en Compras." acciones={<>
         {tiene(sesion, "informes.exportar") && (
-          <a href={`/informes/exportar?tipo=gastos&desde=${desde || "2000-01-01"}&hasta=${hasta || hoyBogota()}${punto && punto !== "general" ? `&punto=${punto}` : ""}`}
-             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-borde bg-white px-4 font-semibold text-morado hover:bg-morado-50">
-            <Download className="size-4" aria-hidden /> Exportar (Excel)
-          </a>
+          <Descargas imprimir={false} enlaces={[{ titulo: "Gastos con estos filtros", url: `/informes/exportar?${new URLSearchParams({
+            tipo: "gastos", desde: desde || "2000-01-01", hasta: hasta || hoyBogota(),
+            ...(punto && punto !== "general" ? { punto } : {}), ...(categoria ? { categoria } : {}), ...(estado ? { estado } : {}),
+            ...(proveedor ? { proveedor } : {}), ...(usuario ? { usuario } : {}),
+          })}` }]} />
         )}
         {boton}
       </>} />
@@ -102,6 +133,12 @@ export default async function PaginaGastos({ searchParams }: {
           <p className="text-sm font-semibold text-suave">Gastos del periodo</p>
           <p className="cifra font-titulo text-2xl font-semibold text-morado">{pesos(total)}</p>
           <p className="text-xs text-suave">{vigentes.length} gasto(s) sin contar anulados</p>
+          {totalAnterior !== null && (
+            <p className="text-xs text-suave">
+              Periodo anterior ({fecha(`${anteriorDesde}T12:00:00`)} – {fecha(`${anteriorHasta}T12:00:00`)}): {pesos(totalAnterior)}
+              {" "}<b className={cn(total > totalAnterior ? "text-naranja" : "text-morado")}>({variacion(total, totalAnterior)})</b>
+            </p>
+          )}
         </Tarjeta>
         <Tarjeta className={cn("flex flex-col gap-1", porPagar > 0 && "border-naranja")}>
           <p className="text-sm font-semibold text-suave">Por pagar</p>
@@ -126,7 +163,7 @@ export default async function PaginaGastos({ searchParams }: {
         ))}
       </div>
 
-      <form className="mb-4 grid gap-2 rounded-2xl border border-borde bg-white p-3 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto_auto] lg:items-end">
+      <form className="mb-4 grid gap-2 rounded-2xl border border-borde bg-white p-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
         {estado && <input type="hidden" name="estado" value={estado} />}
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Buscar
@@ -149,6 +186,20 @@ export default async function PaginaGastos({ searchParams }: {
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-semibold">
+          Proveedor
+          <select name="proveedor" defaultValue={proveedor ?? ""} className="min-h-11 rounded-xl border border-borde bg-white px-2 font-normal">
+            <option value="">Todos</option>
+            {(proveedores ?? []).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold">
+          Registró
+          <select name="usuario" defaultValue={usuario ?? ""} className="min-h-11 rounded-xl border border-borde bg-white px-2 font-normal">
+            <option value="">Cualquiera</option>
+            {((usuarios ?? []) as { id: string; nombre: string }[]).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold">
           Desde
           <input type="date" name="desde" defaultValue={desde} max={hoyBogota()} className="min-h-11 rounded-xl border border-borde bg-white px-2 font-normal" />
         </label>
@@ -161,7 +212,7 @@ export default async function PaginaGastos({ searchParams }: {
 
       {gastos.length === 0 ? (
         <Tarjeta className="text-center text-suave">
-          {desde && !hasta && !estado && !categoria && !punto && !q ? "No hay gastos registrados este mes." : "No hay gastos con esos filtros."}
+          {desde && !hasta && !estado && !categoria && !punto && !q && !proveedor && !usuario ? "No hay gastos registrados este mes." : "No hay gastos con esos filtros."}
         </Tarjeta>
       ) : (
         <ul className="flex flex-col gap-2">

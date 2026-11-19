@@ -5,7 +5,7 @@ import { Printer } from "lucide-react";
 import { exigirPermiso, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { detalleVariante } from "@/lib/catalogo";
-import { ESTADO_LINEA, HECHOS, describirDescuento, estadoVenta, numeroVenta, pagadoNeto, saldoVenta } from "@/lib/ventas";
+import { ESTADO_LINEA, HECHOS, describirDescuento, estadoPago, estadoVenta, numeroVenta, pagadoNeto, saldoVenta } from "@/lib/ventas";
 import { ESTADOS_ORDEN } from "@/lib/inventario";
 import { fecha, pesos } from "@/lib/utilidades";
 import { Aviso } from "@/components/ui/aviso";
@@ -71,6 +71,7 @@ export default async function DetalleVenta({ params, searchParams }: {
   const pagado = pagadoNeto(venta.pagos_venta);
   const devuelto = venta.devoluciones_venta.reduce((s, d) => s + Number(d.valor_total), 0);
   const { texto, tono } = estadoVenta(venta);
+  const pago = estadoPago(venta);
   const lineas = [...venta.venta_lineas].sort((a, b) => (a.variantes?.sku ?? "").localeCompare(b.variantes?.sku ?? ""));
   const porEstampar = lineas.some((l) => l.estado === "por_estampar");
   const sinApartar = lineas.some((l) => l.estado === "pendiente");
@@ -117,7 +118,10 @@ export default async function DetalleVenta({ params, searchParams }: {
               {venta.clientes && (venta.clientes.documento || venta.clientes.telefono) && (
                 <span className="text-sm text-suave">{[venta.clientes.documento, venta.clientes.telefono].filter(Boolean).join(" · ")}</span>
               )}
-              <span className="ml-auto"><Insignia tono={tono}>{texto}</Insignia></span>
+              <span className="ml-auto flex flex-wrap gap-1">
+                <Insignia tono={tono}>{texto}</Insignia>
+                {pago && <Insignia tono={pago.tono}>{pago.texto}</Insignia>}
+              </span>
             </div>
             <ul className="flex flex-col divide-y divide-borde">
               {lineas.map((l) => {

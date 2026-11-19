@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Download } from "lucide-react";
 import { exigirPermiso, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { diasEntre, resolverPeriodo } from "@/lib/periodos";
@@ -10,6 +10,7 @@ import { Pestanas } from "@/components/app/pestanas";
 import { FiltroPeriodo } from "@/components/app/filtro-periodo";
 import { BarrasHorizontales, GraficaBarras } from "@/components/ui/grafica-barras";
 import { Encabezado, Tarjeta } from "@/components/ui/tarjeta";
+import { Descargas } from "@/components/app/descargas";
 
 export const metadata: Metadata = { title: "Informes" };
 
@@ -28,17 +29,17 @@ export default async function InformeVentasPagina({ searchParams }: {
   const t = inf?.totales;
   const porDia = new Map((inf?.por_dia ?? []).map((d) => [d.fecha, d]));
   const dias = diasEntre(periodo.desde, periodo.hasta);
-  const exportar = tiene(sesion, "informes.exportar")
-    ? `/informes/exportar?desde=${periodo.desde}&hasta=${periodo.hasta}${punto ? `&punto=${punto}` : ""}` : null;
-  const boton = "inline-flex min-h-11 items-center gap-2 rounded-xl border border-borde bg-white px-4 font-semibold text-morado hover:bg-morado-50";
+  const filtro = `desde=${periodo.desde}&hasta=${periodo.hasta}${punto ? `&punto=${punto}` : ""}`;
+  const descargas = tiene(sesion, "informes.exportar") ? [
+    { titulo: "Ventas por producto", url: `/informes/exportar?tipo=ventas&${filtro}` },
+    { titulo: "Lista de ventas", url: `/informes/exportar?tipo=ventas_lista&${filtro}` },
+    { titulo: "Ventas por cliente", url: `/informes/exportar?tipo=clientes&${filtro}` },
+  ] : [];
 
   return (
     <>
       <Encabezado titulo="Informes" descripcion={`Ventas entregadas del ${fecha(`${periodo.desde}T12:00:00`)} al ${fecha(`${periodo.hasta}T12:00:00`)}.`}
-                  acciones={exportar ? (<>
-                    <a href={`${exportar}&tipo=ventas`} className={boton}><Download className="size-4" aria-hidden /> Productos (Excel)</a>
-                    <a href={`${exportar}&tipo=ventas_lista`} className={boton}><Download className="size-4" aria-hidden /> Ventas (Excel)</a>
-                  </>) : undefined} />
+                  acciones={<Descargas enlaces={descargas} />} />
       <Pestanas actual="/informes" etiqueta="Informes" items={pestanasInformes(sesion.permisos)} />
       <FiltroPeriodo ruta="/informes" clave={periodo.clave} desde={periodo.desde} hasta={periodo.hasta} punto={punto} puntos={puntos} />
       {error && <Tarjeta className="text-error">{mensajeError(error)}</Tarjeta>}
@@ -87,6 +88,15 @@ export default async function InformeVentasPagina({ searchParams }: {
                 <Tarjeta>
                   <h2 className="mb-3 text-lg font-semibold text-morado">Por punto de venta</h2>
                   <BarrasHorizontales datos={inf.por_punto.map((v) => ({ etiqueta: v.punto, detalle: `${v.ventas} venta(s)`, valor: Number(v.valor) }))} />
+                </Tarjeta>
+              )}
+              {(inf.por_cliente ?? []).length > 0 && (
+                <Tarjeta>
+                  <div className="mb-3 flex items-center gap-2">
+                    <h2 className="flex-1 text-lg font-semibold text-morado">Por cliente</h2>
+                    <Link href={`/informes/cuentas?${filtro}`} className="text-sm font-semibold text-morado underline print:hidden">Ver todos</Link>
+                  </div>
+                  <BarrasHorizontales datos={(inf.por_cliente ?? []).slice(0, 6).map((c) => ({ etiqueta: c.cliente, detalle: `${c.ventas} venta(s)`, valor: Number(c.valor) }))} />
                 </Tarjeta>
               )}
               <Tarjeta>

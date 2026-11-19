@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
-import { Download } from "lucide-react";
 import { exigirPermiso, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { pestanasInformes } from "@/lib/informes";
+import { mesCorto, pestanasInformes, type SerieMes } from "@/lib/informes";
+import { todasLasFilas } from "@/lib/exportar";
+import { resolverPeriodo } from "@/lib/periodos";
 import { CLASES } from "@/lib/catalogo";
 import { numero } from "@/lib/inventario";
 import { pesos } from "@/lib/utilidades";
 import { Pestanas } from "@/components/app/pestanas";
 import { Encabezado, Insignia, Tarjeta } from "@/components/ui/tarjeta";
+import { GraficaColumnas } from "@/components/ui/grafica-barras";
+import { Descargas } from "@/components/app/descargas";
 
 export const metadata: Metadata = { title: "Informe de inventario" };
 
@@ -30,17 +33,25 @@ export default async function InformeInventario({ searchParams }: { searchParams
   const veCostos = tiene(sesion, "costos.ver");
   const puntos = sesion.bodegas;
   const punto = puntos.some((p) => p.id === f.punto) ? f.punto : undefined;
-  let consulta = supabase.from("existencias_detalle")
-    .select("variante_id, bodega_id, bodega, sku, producto, clase, unidad_medida, talla, color, tipo, diseno, cantidad, disponible, activo")
-    .neq("cantidad", 0).order("producto").order("sku").limit(3000);
-  if (punto) consulta = consulta.eq("bodega_id", punto);
-  const [{ data }, { data: costos }, { data: alertas }] = await Promise.all([
-    consulta,
-    veCostos ? supabase.from("variante_costos").select("variante_id, costo_promedio") : Promise.resolve({ data: [] }),
+  type Costo = { variante_id: string; costo_promedio: number };
+  type Pagina<T> = PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
+  const [filas, costos, { data: alertas }, mensual] = await Promise.all([
+    todasLasFilas<Existencia>((a, b) => {
+      let q = supabase.from("existencias_detalle")
+        .select("variante_id, bodega_id, bodega, sku, producto, clase, unidad_medida, talla, color, tipo, diseno, cantidad, disponible, activo")
+        .neq("cantidad", 0).order("producto").order("sku").order("bodega");
+      if (punto) q = q.eq("bodega_id", punto);
+      return q.range(a, b) as unknown as Pagina<Existencia>;
+    }, 20000),
+    veCostos
+      ? todasLasFilas<Costo>((a, b) => supabase.from("variante_costos").select("variante_id, costo_promedio").order("variante_id").range(a, b) as unknown as Pagina<Costo>)
+      : Promise.resolve([] as Costo[]),
     supabase.rpc("alertas_inventario", { p_bodega: punto ?? null }),
+    supabase.rpc("serie_mensual", { p_meses: 12 }),
   ]);
-  const filas = (data ?? []) as Existencia[];
-  const costo = new Map(((costos ?? []) as { variante_id: string; costo_promedio: number }[]).map((c) => [c.variante_id, Number(c.costo_promedio)]));
+  const costo = new Map(costos.map((c) => [c.variante_id, Number(c.costo_promedio)]));
+  const serie = ((mensual.data ?? []) as SerieMes[]).filter((m) => m.inventario_unidades !== null);
+  const mes = resolverPeriodo({ periodo: "mes" });
   const porClase = new Map<string, { unidades: number; valor: number }>();
   for (const e of filas) {
     const x = porClase.get(e.clase) ?? { unidades: 0, valor: 0 };
@@ -50,16 +61,18 @@ export default async function InformeInventario({ searchParams }: { searchParams
   }
   const total = [...porClase.values()].reduce((s, x) => s + x.valor, 0);
   const lista = (alertas ?? []) as Alerta[];
-  const exportar = tiene(sesion, "informes.exportar") ? `/informes/exportar?tipo=inventario${punto ? `&punto=${punto}` : ""}` : null;
+  const conPunto = punto ? `&punto=${punto}` : "";
+  const descargas = tiene(sesion, "informes.exportar") ? [
+    { titulo: "Existencias de hoy", url: `/informes/exportar?tipo=inventario${conPunto}` },
+    { titulo: "Agotados y stock bajo", url: `/informes/exportar?tipo=alertas${conPunto}` },
+    ...(tiene(sesion, "inventario.kardex") && veCostos
+      ? [{ titulo: "Kardex de este mes", url: `/informes/exportar?tipo=kardex&desde=${mes.desde}&hasta=${mes.hasta}${conPunto}` }] : []),
+  ] : [];
 
   return (
     <>
       <Encabezado titulo="Inventario" descripcion="Existencias de hoy por producto y punto."
-                  acciones={exportar ? (
-                    <a href={exportar} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-borde bg-white px-4 font-semibold text-morado hover:bg-morado-50">
-                      <Download className="size-4" aria-hidden /> Exportar a Excel (CSV)
-                    </a>
-                  ) : undefined} />
+                  acciones={<Descargas enlaces={descargas} />} />
       <Pestanas actual="/informes/inventario" etiqueta="Informes" items={pestanasInformes(sesion.permisos)} />
       {puntos.length > 1 && (
         <form className="mb-4 flex flex-wrap items-end gap-2">
@@ -92,6 +105,27 @@ export default async function InformeInventario({ searchParams }: { searchParams
           </Tarjeta>
         )}
       </div>
+
+      {serie.length > 1 && (
+        <Tarjeta className="mb-4">
+          <h2 className="mb-1 text-lg font-semibold text-morado">Evolución del inventario</h2>
+          <p className="mb-3 text-xs text-suave">Camisetas terminadas y base al cierre de cada mes, en todos tus puntos.</p>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div>
+              <h3 className="text-sm font-semibold">Unidades</h3>
+              <GraficaColumnas formato="numero" titulo="Unidades en inventario al cierre de cada mes"
+                               datos={serie.map((m) => ({ etiqueta: mesCorto(m.mes), valor: Number(m.inventario_unidades ?? 0) }))} />
+            </div>
+            {veCostos && serie.some((m) => m.inventario_valor !== null) && (
+              <div>
+                <h3 className="text-sm font-semibold">Valor a costo</h3>
+                <GraficaColumnas titulo="Valor del inventario al cierre de cada mes"
+                                 datos={serie.map((m) => ({ etiqueta: mesCorto(m.mes), valor: Number(m.inventario_valor ?? 0) }))} />
+              </div>
+            )}
+          </div>
+        </Tarjeta>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
         <Tarjeta>

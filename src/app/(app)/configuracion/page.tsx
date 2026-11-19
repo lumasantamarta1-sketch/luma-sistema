@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DatabaseBackup } from "lucide-react";
 import { exigirPermiso } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { Encabezado, Insignia, Tarjeta } from "@/components/ui/tarjeta";
@@ -44,6 +45,16 @@ export default async function PaginaConfiguracion() {
             </ul>
           </Tarjeta>
           <Tarjeta><NuevoPunto /></Tarjeta>
+          <Tarjeta>
+            <h2 className="mb-1 text-lg font-semibold text-morado">Copia de seguridad</h2>
+            <p className="mb-3 text-sm text-suave">
+              Descarga todos los datos en un archivo de Excel: productos, inventario, ventas, compras, gastos, caja, clientes y proveedores.
+              Descargarla no cambia nada. Guárdala en un lugar seguro, por ejemplo una vez por semana.
+            </p>
+            <a href="/configuracion/respaldo" download className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-morado px-4 font-semibold text-white hover:bg-morado-700">
+              <DatabaseBackup className="size-5" aria-hidden /> Descargar copia de seguridad
+            </a>
+          </Tarjeta>
         </div>
       </div>
     </>

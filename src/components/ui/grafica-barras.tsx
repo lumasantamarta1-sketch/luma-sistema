@@ -65,3 +65,52 @@ export function BarrasHorizontales({ datos, formato = "pesos" }: { datos: Dato[]
     </ul>
   );
 }
+
+// Columnas por periodo que admiten valores negativos (resultado, utilidad): lo negativo va bajo la línea del cero
+export function GraficaColumnas({ datos, titulo, formato = "pesos", alto = 200 }: {
+  datos: Dato[]; titulo: string; formato?: "pesos" | "numero"; alto?: number;
+}) {
+  const ancho = 640;
+  const arriba = 18;
+  const abajo = alto - 24;
+  const maximo = Math.max(0, ...datos.map((d) => d.valor));
+  const minimo = Math.min(0, ...datos.map((d) => d.valor));
+  const rango = Math.max(1, maximo - minimo);
+  const y = (v: number) => arriba + ((maximo - v) / rango) * (abajo - arriba);
+  const cero = y(0);
+  const paso = datos.length ? ancho / datos.length : 0;
+  const barra = Math.max(4, Math.min(40, paso * 0.6));
+  const fmt = (v: number) => (formato === "pesos" ? pesos(v) : new Intl.NumberFormat("es-CO").format(v));
+  const cada = Math.max(1, Math.ceil(datos.length / 12));
+  return (
+    <figure className="w-full">
+      <figcaption className="sr-only">{titulo}</figcaption>
+      <svg viewBox={`0 0 ${ancho} ${alto}`} className="h-auto w-full" role="img" aria-label={titulo}>
+        <line x1={0} x2={ancho} y1={cero} y2={cero} className="stroke-borde" strokeWidth={1} />
+        {datos.map((d, i) => {
+          const tope = y(d.valor);
+          const h = d.valor === 0 ? 0 : Math.max(2, Math.abs(tope - cero));
+          const x = i * paso + (paso - barra) / 2;
+          return (
+            <g key={`${d.etiqueta}-${i}`}>
+              <rect x={x} y={d.valor >= 0 ? cero - h : cero} width={barra} height={h} rx={3}
+                    className={d.valor < 0 ? "fill-rosa" : "fill-morado"}>
+                <title>{`${d.etiqueta}: ${fmt(d.valor)}${d.detalle ? ` · ${d.detalle}` : ""}`}</title>
+              </rect>
+              {i % cada === 0 && (
+                <text x={x + barra / 2} y={alto - 6} textAnchor="middle" className="fill-suave" fontSize={11}>{d.etiqueta}</text>
+              )}
+            </g>
+          );
+        })}
+        <text x={ancho} y={12} textAnchor="end" className="fill-suave" fontSize={11}>
+          máx. {fmt(maximo)}{minimo < 0 ? ` · mín. ${fmt(minimo)}` : ""}
+        </text>
+      </svg>
+      <table className="sr-only">
+        <caption>{titulo}</caption>
+        <tbody>{datos.map((d, i) => <tr key={i}><th scope="row">{d.etiqueta}</th><td>{fmt(d.valor)}</td></tr>)}</tbody>
+      </table>
+    </figure>
+  );
+}

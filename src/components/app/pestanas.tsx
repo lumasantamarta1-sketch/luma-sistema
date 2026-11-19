@@ -8,7 +8,7 @@ export function Pestanas({ actual, items, etiqueta }: { actual: string; items: P
   const visibles = items.filter((i) => i.ver !== false);
   if (visibles.length < 2) return null;
   return (
-    <nav className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 ring-1 ring-borde" aria-label={etiqueta}>
+    <nav className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 ring-1 ring-borde print:hidden" aria-label={etiqueta}>
       {visibles.map((i) => (
         <Link key={i.ruta} href={i.ruta} aria-current={actual === i.ruta ? "page" : undefined}
               className={cn("whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold",

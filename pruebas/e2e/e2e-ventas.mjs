@@ -11,6 +11,7 @@ await p.setViewport({ width: 1280, height: 900 });
 const errores = [];
 p.on("pageerror", (e) => errores.push(`pageerror: ${e.message}`));
 p.on("console", (m) => { if (m.type() === "error") errores.push(`consola: ${m.text()}`); });
+p.on("response", (r) => { if (r.status() === 404) errores.push(`404: ${r.url()}`); });
 let pasos = 0;
 const ok = (m) => console.log(`ok · ${m}`);
 const foto = (n) => p.screenshot({ path: `/tmp/e2e-ventas/${String(++pasos).padStart(2, "0")}-${n}.png`, fullPage: true });
@@ -96,7 +97,7 @@ ok(`camiseta personalizada ${skuPer} a $ 60.000`);
 await ingresar("vendedora@luma.local", "vendedora-456");
 await ir("/");
 if (!(await texto()).includes("Nueva venta")) await falla("el inicio debía ofrecer «Nueva venta»");
-await ir("/ventas/nueva");
+await ir("/ventas/nueva/completa");
 await esperarTexto("Con existencias en este punto");
 await agregarProducto("NAV-CR-M-BLA");
 await clic("Agregar una");
@@ -117,7 +118,7 @@ ok("venta de mostrador: 2 camisetas, efectivo con cambio, entregada; quedan 5");
 // ---------------------------------------------------------------------
 // 2. Sin existencias suficientes no se confirma (y el servidor da un mensaje claro)
 // ---------------------------------------------------------------------
-await ir("/ventas/nueva");
+await ir("/ventas/nueva/completa");
 await agregarProducto("NAV-CR-M-BLA");
 await cantidad(8);
 await esperarTexto("Faltan 3 en este punto");
@@ -136,7 +137,7 @@ ok("la vendedora anula su cotización con motivo");
 // ---------------------------------------------------------------------
 // 3. Cotización con cliente nuevo, editada y confirmada con abono
 // ---------------------------------------------------------------------
-await ir("/ventas/nueva");
+await ir("/ventas/nueva/completa");
 await clic("Cliente nuevo");
 await llenar('input[aria-label="Nombre del cliente"]', "Ana Gómez");
 await llenar('input[aria-label="Teléfono del cliente"]', "3001234567");
@@ -201,13 +202,13 @@ await ir("/ventas/descuentos"); await esperarTexto("Vigente");
 ok("promoción del 10 % creada");
 
 // El administrador registra una cotización propia (la vendedora no debe verla)
-await ir("/ventas/nueva");
+await ir("/ventas/nueva/completa");
 await agregarProducto("NAV-CR-M-BLA");
 await clicHacia("Guardar como cotización", "^/ventas/[0-9a-f-]{36}$");
 const cotAdmin = idVenta();
 
 await ingresar("vendedora@luma.local", "vendedora-456");
-await ir("/ventas/nueva");
+await ir("/ventas/nueva/completa");
 await agregarProducto("NAV-CR-M-BLA");
 await esperarTexto("Disponible");
 await p.evaluate(() => {
@@ -227,6 +228,8 @@ ok("la vendedora aplica la promoción: $ 40.500, cobrada y entregada");
 // Permisos de la vendedora
 await ir(`/ventas/${cotAdmin}`);
 if (!(await texto()).match(/404|no existe|no se encontró|not found/i)) await falla("la vendedora no debía ver la cotización del administrador");
+// Ese 404 es el resultado esperado: no se cuenta como error del navegador
+errores.splice(0, errores.length, ...errores.filter((e) => !e.includes(cotAdmin) && !e.includes("status of 404")));
 await ir("/ventas");
 if ((await texto()).match(new RegExp(cotAdmin))) await falla("la lista de la vendedora no debía incluir ventas ajenas");
 await ir("/ventas/descuentos");
@@ -239,7 +242,7 @@ ok("la vendedora: solo sus ventas, sin descuentos libres, clientes sin edición"
 // ---------------------------------------------------------------------
 // 6. Pedido personalizado: se estampa por pedido con anticipo
 // ---------------------------------------------------------------------
-await ir("/ventas/nueva");
+await ir("/ventas/nueva/completa");
 await agregarProducto(skuPer);
 await llenar('input[placeholder="Ej.: «MARÍA 10» en la espalda"]', "LUIS 10");
 await clic("Otro pago");

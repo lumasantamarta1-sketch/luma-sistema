@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
-  Boxes, ChartColumn, Ellipsis, Factory, House, LogOut, Paintbrush, Plus, Receipt, Settings, Shirt,
+  Boxes, ChartColumn, Ellipsis, Factory, History, House, LogOut, Paintbrush, Plus, Receipt, Settings, Shirt,
   ShoppingBag, Truck, UserCog, Users, Wallet, X, type LucideIcon,
 } from "lucide-react";
 import type { GrupoMenu } from "@/lib/menu";
@@ -13,7 +13,7 @@ import { salir } from "@/app/acciones-sesion";
 import { cn } from "@/lib/utilidades";
 
 const ICONOS: Record<string, LucideIcon> = {
-  House, ShoppingBag, Paintbrush, Truck, Receipt, Wallet, Shirt, Boxes, Users, Factory, ChartColumn, UserCog, Settings,
+  House, ShoppingBag, Paintbrush, Truck, Receipt, Wallet, Shirt, Boxes, Users, Factory, ChartColumn, UserCog, History, Settings,
 };
 
 type Props = {
@@ -100,27 +100,27 @@ export function Marco({ grupos, nombre, rol, puedeVender, minutosInactividad, ch
   );
 
   return (
-    <div className="min-h-dvh lg:pl-64">
+    <div className="min-h-dvh lg:pl-64 print:pl-0">
       {/* Computador: menú lateral fijo */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 overflow-y-auto bg-morado p-4 lg:flex">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 overflow-y-auto bg-morado p-4 lg:flex print:hidden">
         {logo}
         <div className="flex-1">{listaMenu}</div>
         {pieUsuario}
       </aside>
 
       {/* Celular: barra superior */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-borde bg-white/95 px-4 py-2 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-borde bg-white/95 px-4 py-2 backdrop-blur lg:hidden print:hidden">
         <Link href="/" aria-label="Inicio">
           <Image src="/marca/logo-luma.png" alt="LUMA" width={900} height={549} className="h-9 w-auto" />
         </Link>
         <span className="truncate pl-3 text-sm font-semibold text-suave">{nombre}</span>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 sm:px-6 lg:pb-10 lg:pt-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 sm:px-6 lg:pb-10 lg:pt-8 print:max-w-none print:p-0">{children}</main>
 
       {/* Celular: barra inferior con lo más usado */}
       <nav aria-label="Accesos rápidos"
-           className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-borde bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+           className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-borde bg-white pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden">
         <AccesoInferior href="/" etiqueta="Inicio" Icono={House} activo={activo("/", actual)} />
         {tiene("/ventas") ? <AccesoInferior href="/ventas" etiqueta="Ventas" Icono={ShoppingBag} activo={activo("/ventas", actual)} /> : <span />}
         {puedeVender ? (

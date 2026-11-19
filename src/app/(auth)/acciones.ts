@@ -25,6 +25,9 @@ export async function ingresar(_: EstadoFormulario, datos: FormData): Promise<Es
     console.error("[ingresar]", error.status, error.code ?? error.message);
     return { error: mensajeError(error), campos: { correo: r.data.correo } };
   }
+  // Historial de usuarios: el ingreso queda en la auditoría (si falla, no impide entrar)
+  const { error: errorHistorial } = await supabase.rpc("registrar_sesion", { p_evento: "ingreso" });
+  if (errorHistorial) console.error("[ingresar] historial", errorHistorial.message);
   redirect("/");
 }
 

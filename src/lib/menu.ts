@@ -43,6 +43,7 @@ export const MENU: GrupoMenu[] = [
     titulo: "Administración",
     items: [
       { ruta: "/usuarios", titulo: "Usuarios", icono: "UserCog", permisos: ["usuarios.gestionar"] },
+      { ruta: "/auditoria", titulo: "Auditoría", icono: "History", permisos: ["auditoria.ver"] },
       { ruta: "/configuracion", titulo: "Configuración", icono: "Settings", permisos: ["configuracion.gestionar"] },
     ],
   },

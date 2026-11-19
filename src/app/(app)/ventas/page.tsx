@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { exigirPermiso, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { estadoVenta, numeroVenta, saldoVenta } from "@/lib/ventas";
+import { estadoPago, estadoVenta, numeroVenta } from "@/lib/ventas";
 import { cn, fecha, pesos } from "@/lib/utilidades";
 import { PestanasVentas } from "@/components/app/pestanas-ventas";
 import { Encabezado, Insignia, Tarjeta } from "@/components/ui/tarjeta";
@@ -123,19 +123,18 @@ export default async function PaginaVentas({ searchParams }: {
         <ul className="flex flex-col gap-2">
           {ventas.map((v) => {
             const { texto, tono } = estadoVenta(v);
-            const saldo = v.estado === "cotizacion" ? 0 : saldoVenta(v);
+            const pago = estadoPago(v);
             return (
               <li key={v.id}>
                 <Link href={`/ventas/${v.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-borde bg-white p-4 hover:border-morado">
                   <span className="font-semibold">{numeroVenta(v)}</span>
                   <span className="text-sm text-suave">{fecha(v.confirmada_en ?? v.creado_en)} · {v.bodegas?.nombre}</span>
                   <Insignia tono={tono}>{texto}</Insignia>
+                  {pago && <Insignia tono={pago.tono}>{pago.texto}</Insignia>}
                   <span className="ml-auto cifra text-lg font-semibold text-morado">{pesos(v.total)}</span>
                   <span className="basis-full text-sm">
                     {v.clientes?.nombre ?? "Cliente mostrador"}
                     {veTodas && v.perfiles?.nombre && <span className="text-suave"> · vendió {v.perfiles.nombre}</span>}
-                    {saldo > 0 && <b className="cifra text-naranja"> · debe {pesos(saldo)}</b>}
-                    {saldo < 0 && <b className="cifra text-morado"> · a favor {pesos(-saldo)}</b>}
                   </span>
                 </Link>
               </li>

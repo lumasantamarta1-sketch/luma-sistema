@@ -6,6 +6,7 @@ import { z } from "zod";
 import { exigirPermiso, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { mensajeError } from "@/lib/utilidades";
+import { pagadoNeto, saldoVenta } from "@/lib/ventas";
 
 export type Estado = { error?: string; exito?: string; ventaId?: string };
 
@@ -318,4 +319,123 @@ export async function cambiarDescuento(_: Estado, datos: FormData): Promise<Esta
   if (error) return { error: mensajeError(error) };
   revalidatePath("/ventas", "layout");
   return { exito: datos.get("activo") === "true" ? "Descuento activado." : "Descuento desactivado." };
+}
+
+// ---------------------------------------------------------------------
+// Venta rápida: registra, cobra y entrega en un solo paso, sin pasar por cotización.
+// Usa las mismas funciones de la base de datos; si algo falla, devuelve el id para reintentar.
+// ---------------------------------------------------------------------
+export type VentaHecha = {
+  ventaId: string; numero: string; total: number; pagado: number; saldo: number;
+  entregada: boolean; porEstampar: boolean; faltanUnidades: boolean;
+};
+export type ResultadoRapida = { error?: string; ventaId?: string; hecho?: VentaHecha };
+
+const esquemaRapida = z.object({
+  venta_id: uuid.nullable(),
+  bodega_id: z.string().uuid("Elige el punto de venta."),
+  cliente_id: uuid.nullable(),
+  cliente_nuevo: z.object({
+    nombre: z.string().trim().min(1, "Escribe el nombre del cliente.").max(160),
+    telefono: z.string().trim().max(40),
+  }).nullable(),
+  lineas: z.array(z.object({
+    variante_id: uuid,
+    cantidad: z.number().positive("La cantidad debe ser mayor que cero."),
+    descuento_autorizado_id: uuid.nullable(),
+    personalizacion: z.string().trim().max(500),
+  })).min(1, "Agrega al menos una camiseta."),
+  pago: z.object({
+    metodo_pago_id: z.string().uuid("Elige cómo paga el cliente."),
+    completo: z.boolean(),
+    valor: z.number().nonnegative().nullable(),
+    referencia: z.string().trim().max(120),
+  }).nullable(),
+  clave: z.string().uuid(),
+  clave_pago: z.string().uuid(),
+});
+
+type SupabaseServidor = Awaited<ReturnType<typeof crearClienteServidor>>;
+
+async function leerVentaHecha(supabase: SupabaseServidor, filtro: { id: string } | { clave: string }): Promise<VentaHecha | null> {
+  let q = supabase.from("ventas")
+    .select("id, numero, estado, estado_entrega, total, pagos_venta(tipo, valor), devoluciones_venta(valor_total), venta_lineas(estado)");
+  q = "id" in filtro ? q.eq("id", filtro.id) : q.eq("clave_confirmacion", filtro.clave);
+  const { data } = await q.maybeSingle();
+  if (!data || data.estado !== "confirmada") return null;
+  const lineas = (data.venta_lineas ?? []) as { estado: string }[];
+  return {
+    ventaId: data.id as string, numero: (data.numero as string | null) ?? "", total: Number(data.total),
+    pagado: pagadoNeto(data.pagos_venta as { tipo: string; valor: number }[]),
+    saldo: saldoVenta(data as Parameters<typeof saldoVenta>[0]),
+    entregada: data.estado_entrega === "entregada",
+    porEstampar: lineas.some((l) => l.estado === "por_estampar"),
+    faltanUnidades: lineas.some((l) => l.estado === "pendiente"),
+  };
+}
+
+export async function registrarVentaRapida(entrada: unknown): Promise<ResultadoRapida> {
+  const sesion = await exigirPermiso("ventas.crear");
+  const r = esquemaRapida.safeParse(entrada);
+  if (!r.success) return { error: r.error.issues[0]?.message ?? "Revisa la venta." };
+  const v = r.data;
+  const supabase = await crearClienteServidor();
+
+  // Si esta venta ya quedó registrada (por ejemplo, se tocó dos veces el botón), se devuelve la misma
+  const previa = await leerVentaHecha(supabase, { clave: v.clave });
+  if (previa) return { hecho: previa };
+
+  // Cliente: si viene uno nuevo se busca por teléfono para no repetirlo; si no existe, se crea
+  let clienteId = v.cliente_id;
+  let nota = "";
+  if (!clienteId && v.cliente_nuevo) {
+    const telefono = v.cliente_nuevo.telefono.replace(/[^\d+]/g, "");
+    if (telefono) {
+      const { data } = await supabase.from("clientes").select("id").eq("telefono", telefono).eq("activo", true).limit(1).maybeSingle();
+      if (data) clienteId = data.id as string;
+    }
+    if (!clienteId && tiene(sesion, "clientes.crear", "clientes.gestionar")) {
+      const { data, error } = await supabase.from("clientes")
+        .insert({ nombre: v.cliente_nuevo.nombre, telefono: telefono || null }).select("id").single();
+      if (error) return { error: mensajeError(error), ventaId: v.venta_id ?? undefined };
+      clienteId = data.id as string;
+    }
+    if (!clienteId) nota = `Cliente: ${v.cliente_nuevo.nombre}${telefono ? ` · ${telefono}` : ""}`;
+  }
+
+  const { data: id, error } = await supabase.rpc("guardar_cotizacion", {
+    p_venta: v.venta_id,
+    p_datos: {
+      bodega_id: v.bodega_id, cliente_id: clienteId, observaciones: nota,
+      lineas: v.lineas.map((l) => ({
+        variante_id: l.variante_id, cantidad: l.cantidad, personalizacion: l.personalizacion || null,
+        ...(l.descuento_autorizado_id ? { descuento_autorizado_id: l.descuento_autorizado_id } : {}),
+      })),
+    },
+  });
+  if (error) return { error: mensajeError(error), ventaId: v.venta_id ?? undefined };
+  const ventaId = String(id);
+
+  // El valor del pago se toma del total que calculó la base de datos
+  const pagos: { metodo_pago_id: string; valor: number; clave: string; referencia?: string }[] = [];
+  if (v.pago && tiene(sesion, "ventas.cobrar")) {
+    const { data: venta } = await supabase.from("ventas").select("total").eq("id", ventaId).maybeSingle();
+    const total = Number(venta?.total ?? 0);
+    const valor = v.pago.completo ? total : Math.min(Number(v.pago.valor ?? 0), total);
+    if (valor > 0) pagos.push({ metodo_pago_id: v.pago.metodo_pago_id, valor, clave: v.clave_pago, ...(v.pago.referencia ? { referencia: v.pago.referencia } : {}) });
+  }
+  const { error: errorConfirmar } = await supabase.rpc("confirmar_venta", { p_venta: ventaId, p_clave: v.clave, p_pagos: pagos });
+  if (errorConfirmar) {
+    refrescar(ventaId);
+    return { error: mensajeError(errorConfirmar), ventaId };
+  }
+
+  // Se entrega en el acto solo si todo está listo y pagado; si quedó saldo, se entrega cuando pague
+  let hecho = await leerVentaHecha(supabase, { id: ventaId });
+  if (hecho && !hecho.entregada && hecho.saldo <= 0 && !hecho.porEstampar && !hecho.faltanUnidades && tiene(sesion, "ventas.entregar")) {
+    const { error: errorEntrega } = await supabase.rpc("entregar_venta", { p_venta: ventaId });
+    if (!errorEntrega) hecho = await leerVentaHecha(supabase, { id: ventaId });
+  }
+  refrescar(ventaId);
+  return hecho ? { hecho } : { error: "La venta quedó registrada, pero no se pudo leer. Búscala en Ventas.", ventaId };
 }
