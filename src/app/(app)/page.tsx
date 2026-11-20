@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CircleAlert, ClipboardList, Plus, Receipt, Truck, Wallet } from "lucide-react";
+import { CircleAlert, ClipboardList, PackagePlus, Plus, Receipt, Truck, Wallet } from "lucide-react";
 import { exigirSesion, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { Encabezado, Insignia, Tarjeta } from "@/components/ui/tarjeta";
@@ -60,6 +60,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<{
   const accesos = [
     { ver: vende, href: "/ventas/nueva", texto: "Nueva venta", Icono: Plus, principal: true },
     { ver: puede("ventas.entregar", "ventas.crear"), href: "/ventas/pedidos", texto: `Pedidos por entregar${ventas?.pedidos_pendientes ? ` (${ventas.pedidos_pendientes})` : ""}`, Icono: ClipboardList },
+    { ver: puede("inventario.ajustar", "compras.gestionar") && puede("costos.ver"), href: "/inventario/agregar", texto: "Agregar inventario", Icono: PackagePlus },
     { ver: puede("gastos.registrar"), href: "/gastos/nuevo", texto: "Registrar gasto", Icono: Receipt },
     { ver: puede("compras.gestionar"), href: "/compras/nueva", texto: "Nueva compra", Icono: Truck },
     { ver: puede("compras.recibir") && !puede("compras.gestionar"), href: "/compras", texto: "Compras por recibir", Icono: Truck },

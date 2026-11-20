@@ -6,7 +6,7 @@ import { z } from "zod";
 import { exigirPermiso } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { mensajeError } from "@/lib/utilidades";
-import { abreviar } from "@/lib/catalogo";
+import { crearVariantesFaltantes } from "@/lib/variantes";
 
 export type Estado = { error?: string; exito?: string };
 
@@ -86,13 +86,12 @@ export async function generarVariantes(_: Estado, datos: FormData): Promise<Esta
   if (precio !== null && (!Number.isFinite(precio) || precio < 0)) return { error: "El precio no es válido." };
 
   const supabase = await crearClienteServidor();
-  const [{ data: producto }, { data: catT }, { data: catTa }, { data: catC }, { data: catD }, { data: existentes }] = await Promise.all([
+  const [{ data: producto }, { data: catT }, { data: catTa }, { data: catC }, { data: catD }] = await Promise.all([
     supabase.from("productos").select("id, codigo, clase, se_vende, por_pedido").eq("id", productoId.data).single(),
     supabase.from("tipos_camiseta").select("id, nombre").in("id", tipos),
     supabase.from("tallas").select("id, nombre").in("id", tallas),
     supabase.from("colores").select("id, nombre").in("id", colores),
     diseno ? supabase.from("disenos").select("id, codigo").eq("id", diseno) : Promise.resolve({ data: [] as { id: string; codigo: string }[] }),
-    supabase.from("variantes").select("tipo_id, talla_id, color_id, diseno_id").eq("producto_id", productoId.data),
   ]);
   if (!producto) return { error: "Producto no encontrado." };
   if (producto.clase === "material") return { error: "Los materiales tienen una sola variante." };
@@ -100,35 +99,15 @@ export async function generarVariantes(_: Estado, datos: FormData): Promise<Esta
   if (producto.se_vende && precio === null) return { error: "Indica el precio de venta." };
 
   const disenoId = producto.clase === "terminado" && diseno ? diseno : null;
-  const codDiseno = (catD ?? [])[0]?.codigo;
-  const ya = new Set((existentes ?? []).map((v) => [v.tipo_id, v.talla_id, v.color_id, v.diseno_id].join("|")));
-  const nuevas: Record<string, unknown>[] = [];
-  for (const t of catT ?? []) for (const ta of catTa ?? []) for (const c of catC ?? []) {
-    if (ya.has([t.id, ta.id, c.id, disenoId].join("|"))) continue;
-    const raiz = producto.clase === "terminado" && codDiseno ? codDiseno : producto.codigo;
-    nuevas.push({
-      producto_id: producto.id, tipo_id: t.id, talla_id: ta.id, color_id: c.id, diseno_id: disenoId,
-      sku: [raiz, abreviar(t.nombre), ta.nombre.toUpperCase(), abreviar(c.nombre)].join("-"),
-      precio_venta: producto.se_vende ? precio : null, stock_minimo: Number.isFinite(minimo) && minimo > 0 ? minimo : 0,
-    });
-  }
-  if (!nuevas.length) return { error: "Esas combinaciones ya existen." };
-
-  // SKU únicos: si alguno ya existe en otro producto, se le agrega un sufijo
-  const { data: usados } = await supabase.from("variantes").select("sku").in("sku", nuevas.map((n) => n.sku as string));
-  const ocupados = new Set((usados ?? []).map((u) => u.sku));
-  for (const n of nuevas) {
-    let sku = n.sku as string; let i = 2;
-    while (ocupados.has(sku)) sku = `${n.sku}-${i++}`;
-    ocupados.add(sku); n.sku = sku;
-  }
-  const { error } = await supabase.from("variantes").insert(nuevas);
-  if (error) {
-    if (error.message.includes("variantes_base_unica_idx")) return { error: "Ya existe una camiseta base con ese tipo, talla y color en otro producto." };
-    return { error: mensajeError(error) };
-  }
+  const combinaciones = (catT ?? []).flatMap((tipo) => (catTa ?? []).flatMap((talla) => (catC ?? []).map((color) => ({ tipo, talla, color }))));
+  const r = await crearVariantesFaltantes(supabase, {
+    producto, disenoId, codigoDiseno: (catD ?? [])[0]?.codigo, combinaciones,
+    precio, minimo: Number.isFinite(minimo) ? minimo : 0,
+  });
+  if (r.error) return { error: r.error };
+  if (!r.creadas) return { error: "Esas combinaciones ya existen." };
   revalidatePath(`/productos/${producto.id}`);
-  return { exito: `${nuevas.length} variante${nuevas.length === 1 ? "" : "s"} creada${nuevas.length === 1 ? "" : "s"}.` };
+  return { exito: `${r.creadas} variante${r.creadas === 1 ? "" : "s"} creada${r.creadas === 1 ? "" : "s"}.` };
 }
 
 export async function actualizarVariante(_: Estado, datos: FormData): Promise<Estado> {

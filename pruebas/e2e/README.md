@@ -22,6 +22,9 @@ Piezas:
 - `e2e-informes.mjs`: panel de inicio con filtro de fechas, informes de ventas, clientes y cuentas, resultado mes a
   mes, compras y gastos, inventario con su evolución, exportaciones en CSV y Excel, copia de seguridad, auditoría,
   ficha del cliente y permisos.
+- `e2e-agregar-inventario.mjs`: «Agregar inventario» con una camiseta y un diseño nuevos (cuadrícula de tallas y
+  colores), más unidades compradas a un proveedor nuevo sin pagar, cantidades en el inventario, la entrada desde la
+  ficha del producto con tallas y colores marcados, una talla nueva creada ahí mismo, celular y permisos.
 - `e2e-venta-rapida.mjs`: la venta rápida de mostrador como la haría alguien sin capacitación: un toque por camiseta,
   promoción aplicada sola, efectivo con cambio, pedido por estampar con abono por Nequi y cliente elegido de la lista,
   separado sin pago con cliente nuevo, y la pantalla en celular.

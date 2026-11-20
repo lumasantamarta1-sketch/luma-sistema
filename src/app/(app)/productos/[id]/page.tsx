@@ -55,7 +55,14 @@ export default async function PaginaProducto({ params }: { params: Promise<{ id:
   return (
     <>
       <Encabezado titulo={producto.nombre} descripcion={`${producto.codigo} · ${CLASES[producto.clase]}`}
-                  acciones={<Link href={`/productos?clase=${producto.clase}`} className="inline-flex min-h-11 items-center rounded-xl border border-borde bg-white px-4 font-semibold text-morado">Volver</Link>} />
+                  acciones={<>
+                    {(producto.clase === "terminado" || producto.clase === "base") && !producto.por_pedido && producto.activo
+                      && tiene(sesion, "inventario.ajustar", "compras.gestionar") && veCostos && (
+                      <Link href={`/inventario/agregar?producto=${producto.id}`}
+                            className="inline-flex min-h-11 items-center rounded-xl bg-morado px-4 font-semibold text-white hover:bg-morado-700">Agregar inventario</Link>
+                    )}
+                    <Link href={`/productos?clase=${producto.clase}`} className="inline-flex min-h-11 items-center rounded-xl border border-borde bg-white px-4 font-semibold text-morado">Volver</Link>
+                  </>} />
       <div className="grid gap-4 xl:grid-cols-[1fr_400px]">
         <div className="flex flex-col gap-4">
           <Tarjeta>

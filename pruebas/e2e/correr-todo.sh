@@ -15,7 +15,7 @@ timeout 400 node e2e.mjs > /tmp/e2e-base.log 2>&1 || { tail -30 /tmp/e2e-base.lo
 tail -2 /tmp/e2e-base.log
 timeout 500 node e2e-ventas.mjs > /tmp/e2e-ventas.log 2>&1 || { tail -30 /tmp/e2e-ventas.log; exit 1; }
 grep -E "^ok|FALLÓ|Errores|Sin errores" /tmp/e2e-ventas.log
-for extra in e2e-dinero.mjs e2e-compras.mjs e2e-informes.mjs e2e-venta-rapida.mjs; do
+for extra in e2e-dinero.mjs e2e-compras.mjs e2e-informes.mjs e2e-venta-rapida.mjs e2e-agregar-inventario.mjs; do
   [[ -e "$extra" ]] || continue
   timeout 500 node "$extra" > "/tmp/${extra%.mjs}.log" 2>&1 || { tail -40 "/tmp/${extra%.mjs}.log"; exit 1; }
   grep -E "^ok|FALLÓ|Errores|Sin errores|consola|pageerror" "/tmp/${extra%.mjs}.log"

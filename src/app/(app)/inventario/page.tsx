@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { exigirPermiso } from "@/lib/sesion";
+import Link from "next/link";
+import { PackagePlus } from "lucide-react";
+import { exigirPermiso, tiene } from "@/lib/sesion";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { Encabezado, Insignia, Tarjeta } from "@/components/ui/tarjeta";
 import { PestanasInventario } from "@/components/app/pestanas-inventario";
@@ -42,7 +44,12 @@ export default async function PaginaInventario({ searchParams }: { searchParams:
 
   return (
     <>
-      <Encabezado titulo="Inventario" descripcion="Lo disponible es lo que hay menos lo apartado por ventas confirmadas." />
+      <Encabezado titulo="Inventario" descripcion="Lo disponible es lo que hay menos lo apartado por ventas confirmadas."
+                  acciones={tiene(sesion, "inventario.ajustar", "compras.gestionar") && tiene(sesion, "costos.ver") ? (
+                    <Link href="/inventario/agregar" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-morado px-4 font-semibold text-white hover:bg-morado-700">
+                      <PackagePlus className="size-5" aria-hidden /> Agregar inventario
+                    </Link>
+                  ) : undefined} />
       <PestanasInventario actual="/inventario" permisos={sesion.permisos} />
       <form className="mb-4 grid gap-2 sm:grid-cols-[1fr_200px_200px_auto]">
         <input type="search" name="q" defaultValue={q} placeholder="Buscar por SKU o producto" aria-label="Buscar"

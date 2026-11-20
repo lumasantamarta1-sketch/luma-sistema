@@ -5,6 +5,7 @@ export function PestanasInventario({ actual, permisos }: { actual: string; permi
   const p = (...c: string[]) => c.some((x) => permisos.includes(x));
   const items = [
     { ruta: "/inventario", titulo: "Existencias", ver: true },
+    { ruta: "/inventario/agregar", titulo: "Agregar inventario", ver: p("inventario.ajustar", "compras.gestionar") && p("costos.ver") },
     { ruta: "/inventario/kardex", titulo: "Movimientos", ver: p("inventario.kardex") },
     { ruta: "/inventario/ajustes", titulo: "Ajustes", ver: p("inventario.ajustar", "inventario.aprobar_ajuste", "inventario.kardex") },
     { ruta: "/inventario/traslados", titulo: "Traslados", ver: p("traslados.ver", "traslados.gestionar") },
